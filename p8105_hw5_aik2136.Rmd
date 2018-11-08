@@ -64,7 +64,7 @@ The spaghetti plot shows that individuals assigned to the control arm appear to 
 
 ##### *The Washington Post* has gathered data on homicides in 50 large U.S. cities and made the data available through a GitHub repository. 
 
-Describe the raw data. Create a `city_state` variable (e.g. “Baltimore, MD”) and then summarize within cities to obtain the total number of homicides and the number of unsolved homicides (those for which the disposition is “Closed without arrest” or “Open/No arrest”).
+Describe the raw data.
 
 ```{r load_clean_data_2, message = FALSE}
 homicide_data = 
@@ -72,4 +72,73 @@ homicide_data =
   janitor::clean_names()
 ```
 
-*The Washington Post* homicide dataset contains information on **`r nrow(homicide_data)` homicides** from 2007 to 2015 across 50 major U.S. cities. There are **`r ncol(homicide_data)` variables**, which provide information on the the victim's name, age, sex, race, reported date of homicide, location of homicide, and whether or not the case was solved.
+*The Washington Post* homicide dataset contains information on **`r nrow(homicide_data)` homicides** from 2007 to 2015 across 50 major U.S. cities. There are **`r ncol(homicide_data)` variables**, which provide information on the the victim's name, age, sex, race, reported date of homicide, location of homicide, and whether or not the case was solved. The data seems to be tidy.  
+
+Create a `city_state` variable (e.g. “Baltimore, MD”) and then summarize within cities to obtain the total number of homicides and the number of unsolved homicides (those for which the disposition is “Closed without arrest” or “Open/No arrest”).
+
+```{r create_variable_2}
+grouped_homicide = homicide_data %>%
+  unite("city_state", c("city", "state"), sep = ", ") %>% 
+  mutate(disposition = recode(disposition, "'Closed without arrest' = 'unsolved'; 'Open/No arrest' = 'unsolved'; 'Closed by arrest' = 'solved'")) %>%
+  mutate(city_state = recode(city_state, "'Tulsa, AL' = 'Tulsa, OK'")) %>% 
+  group_by(city_state) %>% 
+  summarize(total = n(), unsolved = sum(disposition == "unsolved"))
+```
+
+For the city of Baltimore, MD, use the `prop.test` function to estimate the proportion of homicides that are unsolved; save the output of prop.test as an R object, apply the `broom::tidy` to this object and pull the estimated proportion and confidence intervals from the resulting tidy dataframe.
+
+```{r balitmore_homicide_2}
+homicide_baltimore = grouped_homicide %>% 
+  filter(city_state == 'Baltimore, MD')
+
+prop_balitmore = broom::tidy(prop.test(homicide_baltimore$unsolved, homicide_baltimore$total))
+
+knitr::kable(prop_balitmore, col.names = c("Estimate",
+                           "Statistic",
+                           "P-value",
+                           "Parameter",
+                           "Lower bound",
+                           "Upper bound",
+                           "Method",
+                           "Alternative"))
+```
+
+The estimated proportion of unsolved cases in Baltimore, MD is 64.6% of all homicide cases (95% CI: 62.8%, 66.3%).
+
+Now run prop.test for each of the cities in your dataset, and extract both the proportion of unsolved homicides and the confidence interval for each. Do this within a “tidy” pipeline, making use of `purrr::map`, `purrr::map2`, list columns and  unnest as necessary to create a tidy dataframe with estimated proportions and CIs for each city.
+
+```{r prop_homicides_2}
+prop_homicides = grouped_homicide %>% 
+  mutate(homicides = map2(unsolved, total, ~broom::tidy(prop.test(.x, .y)))) %>% 
+  unnest() %>% 
+  select(city_state:estimate, conf.low:conf.high) %>% 
+  janitor::clean_names()
+
+knitr::kable(prop_homicides, col.names = c("City, State",
+                           "Total",
+                           "Unsolved",
+                           "Estimate",
+                           "Lower bound",
+                           "Upper bound"))
+```
+
+Create a plot that shows the estimates and CIs for each city – check out geom_errorbar for a way to add error bars based on the upper and lower limits. Organize cities according to the proportion of unsolved homicides.
+
+```{r plot_2, fig.width=10, fig.height=8}
+prop_homicides %>% 
+  mutate(city_state = fct_reorder(city_state, estimate)) %>% 
+  ggplot(aes(x = city_state, y = estimate)) + 
+  geom_point(color = "red") + 
+  geom_errorbar(aes(ymin = conf_low, ymax = conf_high)) + 
+  coord_flip() + 
+  labs(title = "Proportion of unsolved cases in 50 major US cities with 95% CI", 
+       y = "Proportion of unsolved cases", 
+       x = "Location",
+       caption = "* Error bars indicate 95% confidence interval") + 
+  theme_classic() +
+  theme(axis.title = element_text(size = 16), 
+        plot.title = element_text(size = 20)
+        ) 
+```
+
+The resulting plot shows the estimated proportion of unsolved homicide cases in each of the 50 cities with a corresponding 95% confidence interval. Chicago has the highest proportion of unsolved cases (which is considerably higher than the rest of the cities), while Richmond has the lowest proportion of unsolved cases.
