@@ -6,4 +6,49 @@ output: github_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(rvest)
+library(purrr)
+
+library(p8105.datasets)
 ```
+
+### Problem 1
+
+Create a tidy dataframe containing data from all participants, including the subject ID, arm, and observations over time:  
+
+
+Start with a dataframe containing all file names; the `list.files` function will help
+
+```{r create_tidy_df_1, message = FALSE}
+csv_names = list.files("./data/", full.names = TRUE)
+
+df_1 = csv_names %>% 
+  map(read_csv) 
+```
+
+Iterate over file names and read in data for each subject using `purrr::map` and saving the result as a new variable in the dataframe
+```{r iterate_1}
+for (i in 1:20) {
+  if (i < 11) {
+    df_1[[i]] = df_1[[i]] %>% 
+      mutate(arm = "Control", 
+             study_id = i)
+  } else if (i > 10) {
+    df_1[[i]] = df_1[[i]] %>% 
+      mutate(arm = "Experimental", 
+             study_id = i - 10)
+  }
+}
+```
+
+Tidy the result; manipulate file names to include control arm and subject ID, make sure weekly observations are “tidy”, and do any other tidying that’s necessary
+```{r tidying_1}
+df_tidy = bind_rows(df_1) %>% 
+  gather(key = week, value = obs, week_1:week_8) %>% 
+  arrange(week, study_id) %>% 
+  separate(week, into = c("remove", "week")) %>% 
+  select(-remove)
+```
+
