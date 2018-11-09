@@ -58,7 +58,7 @@ ggplot(tidy_df, aes(week, value, group = id, color = id)) +
         )
 ```
 
-The spaghetti plot shows that individuals assigned to the control arm appear to remain constant across the study period while individuals assigned to the experimental arm appear to have increasing observation values.
+The spaghetti plot shows that individuals assigned to the control arm appear to remain constant across the study period while individuals assigned to the experimental arm appear to have increasing observation values. Originally, I had converted ID to a numeric variable, but my legend did not output the way I wanted it to look (gives a continuous bar legend if I coerce ID into a numeric variable), so I kept ID as a character variable.
 
 ### Problem 2
 
@@ -84,6 +84,8 @@ grouped_homicide = homicide_data %>%
   group_by(city_state) %>% 
   summarize(total = n(), unsolved = sum(disposition == "unsolved"))
 ```
+For some reason, there was one entry in which Tulsa, Oklahoma changed to Tulsa, AL after combining `city` and `state` to create `city_state`, so I recoded it from Tulsa, AL to Tulsa, OK.
+
 
 For the city of Baltimore, MD, use the `prop.test` function to estimate the proportion of homicides that are unsolved; save the output of prop.test as an R object, apply the `broom::tidy` to this object and pull the estimated proportion and confidence intervals from the resulting tidy dataframe.
 
@@ -114,7 +116,7 @@ prop_homicides = grouped_homicide %>%
   select(city_state:estimate, conf.low:conf.high) %>% 
   janitor::clean_names()
 
-knitr::kable(prop_homicides, col.names = c("City, State",
+knitr::kable(head(prop_homicides), col.names = c("City, State",
                            "Total",
                            "Unsolved",
                            "Estimate",
@@ -134,7 +136,7 @@ prop_homicides %>%
   labs(title = "Proportion of unsolved cases in 50 major US cities with 95% CI", 
        y = "Proportion of unsolved cases", 
        x = "Location",
-       caption = "* Error bars indicate 95% confidence interval") + 
+       caption = "* Error bar indicates 95% confidence interval") + 
   theme_classic() +
   theme(axis.title = element_text(size = 16), 
         plot.title = element_text(size = 20)
